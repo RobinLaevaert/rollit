@@ -78,22 +78,44 @@ function checkIfValid(posX, posY) {
 }
 
 function place(x, y, color) {
-  field[x].forEach((tile) => {
+
+  // Horizontal checks
+  field[x].forEach((tile, i) => {
     if (tile == color) {
-      var lowerLimit = Math.min(field[x].indexOf(tile), y);
-      var higherLimit = Math.max(field[x].indexOf(tile), y);
+      var lowerLimit = Math.min(i, y);
+      var higherLimit = Math.max(i, y);
       
       if(field[x].slice(lowerLimit+1, higherLimit).some(pt => pt === colors.WHITE)){
         field[x][y] = color;
         return;
       }
       
-        
       for (let index = lowerLimit; index < higherLimit; index++) {
         field[x][index] = color;
       }
     }
   });
+
+  // Vertical checks
+  var verticalLine = field.map(x => x[y]);
+  verticalLine.forEach((tile, i) => {
+    if (tile == color) {
+      var lowerLimit = Math.min(i, x);
+      var higherLimit = Math.max(i, x);
+      
+      if(verticalLine.slice(lowerLimit+1, higherLimit).some(pt => pt === colors.WHITE)){
+        field[x][y] = color;
+        return;
+      }
+      
+      for (let index = lowerLimit; index < higherLimit; index++) {
+        field[index][y] = color;
+      }
+    }
+  });
+
+  // Diagonal checks
+
   field[x][y] = color;
 }
 
