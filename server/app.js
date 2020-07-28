@@ -115,6 +115,37 @@ function place(x, y, color) {
   });
 
   // Diagonal checks
+  // LURD
+  var lowestValue = Math.min(x,y);
+  //var highedValue = Math.max(x,y);
+  var lurdArray = [];
+  var startingPoint = {x: x-lowestValue, y: y-lowestValue}
+  lurdArray.push({x: startingPoint.x, y: startingPoint.y, color: field[startingPoint.x][startingPoint.y]});
+  while(true){
+    startingPoint.x ++;
+    startingPoint.y ++;
+    if(startingPoint.x == 8 || startingPoint.y ==8)
+    break;
+    lurdArray.push({x: startingPoint.x, y: startingPoint.y, color: field[startingPoint.x][startingPoint.y]});
+  }
+  lurdArray.sort((a,b) => {return a.x - b.x || a.y - b.y}).forEach((tile, i) => {
+    if (tile.color == color) {
+      var lowerLimit = Math.min(i, lurdArray.indexOf(lurdArray.find(o => o.x == x && o.y == y)));
+      var higherLimit = Math.max(i, lurdArray.indexOf(lurdArray.find(o => o.x == x && o.y == y)));
+
+      if(lurdArray.slice(lowerLimit+1, higherLimit).some(pt => pt === colors.WHITE)){
+        field[x][y] = color;
+        return;
+      }
+
+      for (let index = lowerLimit; index < higherLimit; index++) {
+        field[lurdArray[index].x][lurdArray[index].y] = color;
+      }
+    }
+  });
+
+  // LDRU
+
 
   field[x][y] = color;
 }
