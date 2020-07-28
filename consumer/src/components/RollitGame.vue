@@ -1,6 +1,6 @@
 <template>
   <div>
-    <p>Current color: {{ color }}</p>
+    <p>Current color: {{ colorString }}</p>
     <p>
       <button v-on:click="changeColor(colors.RED)">Red</button>
       <button v-on:click="changeColor(colors.GREEN)">Green</button>
@@ -45,6 +45,7 @@ export default {
       field: {},
       colors,
       color: colors.RED,
+      colorString: "RED"
     };
   },
   created() {
@@ -59,6 +60,20 @@ export default {
   methods: {
     changeColor(color) {
       this.color = color;
+      switch (color) {
+        case 0:
+          this.colorString = "Red";
+          break;
+        case 1:
+          this.colorString = "Green";
+          break;
+        case 2:
+          this.colorString = "Yellow";
+          break;
+        case 3:
+          this.colorString = "Blue";
+          break;
+      }
     },
     determineColor(colorValue) {
       let returnValue;
