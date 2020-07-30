@@ -1,6 +1,23 @@
 <template>
   <div>
-    <p>Current color: {{ colorString }}</p>
+    <p>Players:</p>
+    <ul>
+      <li
+        v-for="(player, index) in players"
+        v-bind:key="`player-${index}`"
+        class="players"
+      >
+        <button
+          class="button players"
+          v-bind:style="{ 'background-color': determineColor(index) }"
+          v-bind:class="[{ currentPlayer: index == currentTurn }]"
+          disabled
+        >
+          <p v-if="player">{{ player.name }}</p>
+        </button>
+      </li>
+    </ul>
+    <input v-model="playerName" placeholder="Player name" />
     <p>
       <button v-on:click="changeColor(colors.RED)">Red</button>
       <button v-on:click="changeColor(colors.GREEN)">Green</button>
@@ -9,21 +26,36 @@
     </p>
     <div class="spelBord">
       <ul>
-        <ul v-for="(row,index) in field" v-bind:key="`rows-${index}`" class="rowUl">
+        <ul
+          v-for="(row, index) in field"
+          v-bind:key="`rows-${index}`"
+          class="rowUl"
+        >
           <li
             v-for="(rowElement, index) in row"
             v-bind:key="field.indexOf(row) + ` ` + index"
           >
             <button
-              class="button"
+              class="button playButton"
               v-bind:style="{ 'background-color': determineColor(rowElement) }"
-              v-on:click="
-                click(field.indexOf(row), index, color)
-              "
+              v-on:click="click(field.indexOf(row), index, color)"
             ></button>
           </li>
         </ul>
       </ul>
+    </div>
+    <div>
+      <h2>Scoreboard:</h2>
+      <ol>
+        <li
+          v-for="(player, index) in players
+            .filter((x) => x)
+            .sort((a, b) => b.score - a.score)"
+          v-bind:key="`scoreBoardPlayer-${index}`"
+        >
+          <h3>{{ player.name }} - {{ player.score }}</h3>
+        </li>
+      </ol>
     </div>
   </div>
 </template>
@@ -43,37 +75,31 @@ export default {
       socket: {},
       context: {},
       field: {},
+      players: [],
+      playerName: "",
+      currentTurn: 0,
       colors,
       color: colors.RED,
-      colorString: "RED"
+      colorString: "RED",
     };
   },
   created() {
-    this.socket = io("http://localhost:3000");
+    this.socket = io("localhost:3000");
   },
   mounted() {
     this.socket.on("field", (data) => {
       this.field = data;
     });
+    this.socket.on("players", (data) => {
+      this.players = data;
+    });
     this.socket.on("test", (data) => console.log(data));
+    this.socket.on("yourColor", (data) => (this.color = data));
+    this.socket.on("currentPlayer", (data) => (this.currentTurn = data));
   },
   methods: {
     changeColor(color) {
-      this.color = color;
-      switch (color) {
-        case 0:
-          this.colorString = "Red";
-          break;
-        case 1:
-          this.colorString = "Green";
-          break;
-        case 2:
-          this.colorString = "Yellow";
-          break;
-        case 3:
-          this.colorString = "Blue";
-          break;
-      }
+      this.socket.emit("chooseColor", { color: color, name: this.playerName });
     },
     determineColor(colorValue) {
       let returnValue;
@@ -97,7 +123,6 @@ export default {
       return returnValue;
     },
     click(x, y, color) {
-      console.log(x, y, color);
       this.socket.emit("place", { x: x, y: y, color: color });
     },
   },
@@ -120,7 +145,7 @@ export default {
   cursor: pointer;
   border: 1px solid black;
 }
-.button:hover {
+.playButton:hover {
   border: 3px solid orangered;
 }
 
@@ -134,6 +159,21 @@ ul {
 .spelBord {
   width: 1000px;
   height: 896px;
+  border: 1px solid black;
+}
+.players {
+  display: inline-block;
+  margin: 20px;
+  color: black;
+  font-weight: bold;
+  cursor: auto;
+}
+.currentPlayer {
+  -webkit-box-shadow: 0px 0px 56px 19px rgba(17, 255, 0, 1);
+  -moz-box-shadow: 0px 0px 56px 19px rgba(17, 255, 0, 1);
+  box-shadow: 0px 0px 56px 19px rgba(17, 255, 0, 1);
+}
+.normal {
   border: 1px solid black;
 }
 </style>
