@@ -78,7 +78,7 @@ export default {
     };
   },
   created() {
-    this.socket = io("http://localhost:3000");
+    this.socket = io("https://rolit.herokuapp.com");
   },
   mounted() {
     this.socket.on("field", (data) => {

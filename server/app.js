@@ -48,7 +48,7 @@ SocketIo.on("connection", (socket) => {
     // If this is not the case return error to the player who tried to place that 'ball'
     // Next place the ball and calculate the fields which need to change color
     // Color those fields and return the new field to every player
-    if (color != currentTurn) {
+    if (data.color != currentTurn) {
       socket.emit("test", "Not your turn");
       return;
     }
