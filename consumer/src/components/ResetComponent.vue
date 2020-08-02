@@ -1,6 +1,7 @@
 <template>
   <div>
-    <button v-on:click="reset()">Reset</button>
+    <button v-on:click="reset()">RESET</button>
+    <button v-on:click="start()">START</button>
   </div>
 </template>
 
@@ -21,14 +22,15 @@ export default {
     this.socket.on("test", (data) => console.log(data));
   },
   methods: {
-      reset(){
-          this.socket.emit("reset", "reset");
-      }
+    reset() {
+      this.socket.emit("reset", "reset");
+    },
+    start() {
+      this.socket.emit("start");
+    },
   },
 };
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-
-</style>
+<style scoped></style>

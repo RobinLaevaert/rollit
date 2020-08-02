@@ -10,7 +10,7 @@ server.listen(3000, () => {
   console.log("app listening on http://" + addr.address + ":" + addr.port);
 });
 
-const colors = {
+const COLORS = {
   RED: 0,
   GREEN: 1,
   YELLOW: 2,
@@ -18,19 +18,29 @@ const colors = {
   WHITE: 4,
 };
 
+const GAMESTATES = {
+  PRE_GAME: 0,
+  IN_GAME: 1,
+  POST_GAME: 2,
+}
+
 // Create empty playing field
 var coordField;
-// Player array, uses indices from the colors array to set player to certain color;
+// Player array, uses indices from the COLORS array to set player to certain color;
 // Is an array of objects containing name and score.
 var players;
 var currentTurn;
+var gameState;
 
 initializeGame();
 
 SocketIo.on("connection", (socket) => {
   emitGameState();
   socket.on("chooseColor", (data) => {
-    if (players[data.color].name != null)
+    // TODO: better error return
+    if (gameState != GAMESTATES.PRE_GAME)
+      socket.emit("colorAlreadyChosen", null);
+    else if (players[data.color].name != null)
       socket.emit("colorAlreadyChosen", players[data.color]);
     else if (players.some((x) => x === data.name))
       socket.emit("colorAlreadyChosen", players[data.color]);
@@ -48,6 +58,10 @@ SocketIo.on("connection", (socket) => {
     // If this is not the case return error to the player who tried to place that 'ball'
     // Next place the ball and calculate the fields which need to change color
     // Color those fields and return the new field to every player
+    if (gameState != GAMESTATES.IN_GAME){
+      socket.emit("test", "Can't place a tile when we're in pre or post game");
+      return;
+    }
     if (data.color != currentTurn) {
       socket.emit("test", "Not your turn");
       return;
@@ -66,6 +80,10 @@ SocketIo.on("connection", (socket) => {
     if (data === "reset") initializeGame();
     emitGameState();
   });
+  socket.on("start", () => {
+    gameState = GAMESTATES.IN_GAME;
+    emitGameState();
+  })
 });
 
 function checkIfValid(posX, posY) {
@@ -78,9 +96,9 @@ function checkIfValid(posX, posY) {
       tile.x <= posX + 1 &&
       posY - 1 <= tile.y &&
       tile.y <= posY + 1 &&
-      tile.color != colors.WHITE
+      tile.color != COLORS.WHITE
   );
-  return placedTile.color === colors.WHITE && valid;
+  return placedTile.color === COLORS.WHITE && valid;
 }
 
 function place(x, y, color) {
@@ -100,7 +118,7 @@ function place(x, y, color) {
 
 function checkHorizontalLines(x, y, color) {
   // First Filter for the horizontal line (y-values are the same)
-  // Then we go through the array and make conenctions between the chosen colors
+  // Then we go through the array and make conenctions between the chosen COLORS
   // Add all the tiles that have to be colored (tiles which are between 2 borders of the same color)
   // And filter this array for distinct values
   var horizontalLine = coordField.filter((tile) => tile.y === y);
@@ -112,7 +130,7 @@ function checkHorizontalLines(x, y, color) {
         var slicedHorizontalLine = horizontalLine.filter(
           (tile) => lowerLimit < tile.x && tile.x < upperLimit
         );
-        if (slicedHorizontalLine.every((tile) => tile.color != colors.WHITE)) {
+        if (slicedHorizontalLine.every((tile) => tile.color != COLORS.WHITE)) {
           return slicedHorizontalLine
             .filter((x) => x.color != color)
             .map((tile) => {
@@ -131,7 +149,7 @@ function checkHorizontalLines(x, y, color) {
 
 function checkVerticalLines(x, y, color) {
   // First Filter for the vertical line (x-values are the same)
-  // Then we go through the array and make conenctions between the chosen colors
+  // Then we go through the array and make conenctions between the chosen COLORS
   // Add all the tiles that have to be colored (tiles which are between 2 borders of the same color)
   // And filter this array for distinct values
   var verticalLine = coordField.filter((tile) => tile.x === x);
@@ -143,7 +161,7 @@ function checkVerticalLines(x, y, color) {
         var slicedVerticalLine = verticalLine.filter(
           (tile) => lowerLimit < tile.y && tile.y < upperLimit
         );
-        if (slicedVerticalLine.every((tile) => tile.color != colors.WHITE)) {
+        if (slicedVerticalLine.every((tile) => tile.color != COLORS.WHITE)) {
           return slicedVerticalLine
             .filter((x) => x.color != color)
             .map((tile) => {
@@ -170,7 +188,7 @@ function checkLeftUpRightDownDiagonal(x, y, color) {
         var slicedDiagonalLine = diagonalLine.filter(
           (tile) => lowerLimit < tile.x && tile.x < upperLimit
         );
-        if (slicedDiagonalLine.every((tile) => tile.color != colors.WHITE)) {
+        if (slicedDiagonalLine.every((tile) => tile.color != COLORS.WHITE)) {
           return slicedDiagonalLine
             .filter((x) => x.color != color)
             .map((tile) => {
@@ -197,7 +215,7 @@ function checkLeftDownRightUpDiagonal(x, y, color) {
       var slicedDiagonalLine = diagonalLine.filter(
         (tile) => lowerLimit < tile.x && tile.x < upperLimit
       );
-      if (slicedDiagonalLine.every((tile) => tile.color != colors.WHITE)) {
+      if (slicedDiagonalLine.every((tile) => tile.color != COLORS.WHITE)) {
         return slicedDiagonalLine
           .filter((x) => x.color != color)
           .map((tile) => {
@@ -217,17 +235,18 @@ function checkLeftDownRightUpDiagonal(x, y, color) {
 function initializeGame() {
   coordField = [...Array(64).keys()]
     .map((x) => {
-      return { x: x % 8, y: Math.floor(x / 8), color: colors.WHITE };
+      return { x: x % 8, y: Math.floor(x / 8), color: COLORS.WHITE };
     })
     .sort((a, b) => a.x - b.x);
   // Set starting field (1 ball of each color in middle of the field)
-  setColor(3, 3, colors.RED);
-  setColor(3, 4, colors.YELLOW);
-  setColor(4, 3, colors.GREEN);
-  setColor(4, 4, colors.BLUE);
+  setColor(3, 3, COLORS.RED);
+  setColor(3, 4, COLORS.YELLOW);
+  setColor(4, 3, COLORS.GREEN);
+  setColor(4, 4, COLORS.BLUE);
 
   players = Array.from(new Array(4), () => {return {name: null, score: 1}});
   currentTurn = 0; //Math.floor(Math.random()*4);
+  gameState = GAMESTATES.PRE_GAME;
 }
 
 function emitGameState() {
@@ -243,6 +262,8 @@ function calculateScores() {
       score: coordField.filter((x) => x.color === index).length,
     };
   });
+  if(coordField.filter(x => x.color == COLORS.WHITE).length ===0)
+    gameState = GAMESTATES.POST_GAME;
 }
 
 function nextTurn() {
