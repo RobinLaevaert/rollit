@@ -43,7 +43,7 @@
       <h2>Scoreboard:</h2>
       <ol>
         <li
-          v-for="(player, index) in players
+          v-for="(player, index) in players.filter(x => x.name != null)
             .filter((x) => x)
             .sort((a, b) => b.score - a.score)"
           v-bind:key="`scoreBoardPlayer-${index}`"

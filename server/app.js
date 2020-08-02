@@ -30,7 +30,7 @@ initializeGame();
 SocketIo.on("connection", (socket) => {
   emitGameState();
   socket.on("chooseColor", (data) => {
-    if (players[data.color] != null)
+    if (players[data.color].name != null)
       socket.emit("colorAlreadyChosen", players[data.color]);
     else if (players.some((x) => x === data.name))
       socket.emit("colorAlreadyChosen", players[data.color]);
@@ -232,7 +232,7 @@ function initializeGame() {
   setColor(4, 3, colors.GREEN);
   setColor(4, 4, colors.BLUE);
 
-  players = [null, null, null, null];
+  players = Array.from(new Array(4), () => {return {name: null, score: 1}});
   currentTurn = 0; //Math.floor(Math.random()*4);
 }
 
@@ -255,7 +255,7 @@ function nextTurn() {
   if (currentTurn == 3) currentTurn = 0;
   else currentTurn++;
 
-  if (players[currentTurn] == null) nextTurn();
+  if (players[currentTurn].name == null) nextTurn();
 }
 
 function setColor(x, y, color) {
