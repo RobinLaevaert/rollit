@@ -44,11 +44,11 @@ SocketIo.on("connection", (socket) => {
     // data has 3 properties: x, y and color;
     // First check if placement is valid
     // ( => check if the new ball is next to an already colored field & if the correct player played the move)
+    // TODO: Have to play a 'border-move' if possible
     // If this is not the case return error to the player who tried to place that 'ball'
     // Next place the ball and calculate the fields which need to change color
     // Color those fields and return the new field to every player
-    var allowedToPlay = checkIfPlayerIsAllowedToPlay(data.color);
-    if (!allowedToPlay) {
+    if (color != currentTurn) {
       socket.emit("test", "Not your turn");
       return;
     }
@@ -67,12 +67,6 @@ SocketIo.on("connection", (socket) => {
     emitGameState();
   });
 });
-
-function checkIfPlayerIsAllowedToPlay(color) {
-  console.log(`playedColor: ${color}, currentTurnColor: ${currentTurn}`);
-  if (color != currentTurn) return false;
-  return true;
-}
 
 function checkIfValid(posX, posY) {
   var placedTile = coordField.find(

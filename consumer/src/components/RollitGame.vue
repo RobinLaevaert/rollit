@@ -35,7 +35,7 @@
               v-bind:style="{ 'background-color': determineColor(tile.color) }"
               v-on:click="click(tile)"
               style="color:black"
-            >X:{{tile.x}} <br> Y:{{tile.y}}</button>
+            ><!--X:{{tile.x}} <br> Y:{{tile.y}}--></button>
           </li>
       </ul>
     </div>
@@ -69,14 +69,12 @@ export default {
     return {
       socket: {},
       context: {},
-      field: {},
       coordField: [],
       players: [],
       playerName: "",
       currentTurn: 0,
       colors,
       color: colors.RED,
-      colorString: "RED",
     };
   },
   created() {
@@ -92,7 +90,7 @@ export default {
     this.socket.on("players", (data) => {
       this.players = data;
     });
-    this.socket.on("test", (data) => console.log(data));
+    this.socket.on("test", (data) => console.log(data)); // Temp, should show some error when this happens => faulty move. tag of socket needs to change aswell.
     this.socket.on("yourColor", (data) => (this.color = data));
     this.socket.on("currentPlayer", (data) => (this.currentTurn = data));
   },
@@ -122,8 +120,6 @@ export default {
       return returnValue;
     },
     click(tile) {
-      console.log(`Tile clicked: {x:${tile.x}y:${tile.y}} Current color of this tile: ${this.determineColor(tile.color)}`);
-      //this.socket.emit("place", { x: x, y: y, color: color });
       this.socket.emit("place", {x: tile.x, y: tile.y, color: this.color});
     },
   },
