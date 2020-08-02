@@ -26,22 +26,17 @@
     </p>
     <div class="spelBord">
       <ul>
-        <ul
-          v-for="(row, index) in field"
-          v-bind:key="`rows-${index}`"
-          class="rowUl"
-        >
           <li
-            v-for="(rowElement, index) in row"
-            v-bind:key="field.indexOf(row) + ` ` + index"
+            v-for="(tile, index) in coordField"
+            v-bind:key="index"
           >
             <button
               class="button playButton"
-              v-bind:style="{ 'background-color': determineColor(rowElement) }"
-              v-on:click="click(field.indexOf(row), index, color)"
-            ></button>
+              v-bind:style="{ 'background-color': determineColor(tile.color) }"
+              v-on:click="click(tile)"
+              style="color:black"
+            >X:{{tile.x}} <br> Y:{{tile.y}}</button>
           </li>
-        </ul>
       </ul>
     </div>
     <div>
@@ -75,6 +70,7 @@ export default {
       socket: {},
       context: {},
       field: {},
+      coordField: [],
       players: [],
       playerName: "",
       currentTurn: 0,
@@ -84,11 +80,14 @@ export default {
     };
   },
   created() {
-    this.socket = io("localhost:3000");
+    this.socket = io("http://localhost:3000");
   },
   mounted() {
     this.socket.on("field", (data) => {
       this.field = data;
+    });
+    this.socket.on("coordField", (data) => {
+      this.coordField = data;
     });
     this.socket.on("players", (data) => {
       this.players = data;
@@ -122,8 +121,10 @@ export default {
       }
       return returnValue;
     },
-    click(x, y, color) {
-      this.socket.emit("place", { x: x, y: y, color: color });
+    click(tile) {
+      console.log(`Tile clicked: {x:${tile.x}y:${tile.y}} Current color of this tile: ${this.determineColor(tile.color)}`);
+      //this.socket.emit("place", { x: x, y: y, color: color });
+      this.socket.emit("place", {x: tile.x, y: tile.y, color: this.color});
     },
   },
 };
@@ -151,11 +152,10 @@ export default {
 
 ul {
   padding: 0;
-}
-.rowUl {
   columns: 8;
   list-style-type: none;
 }
+
 .spelBord {
   width: 1000px;
   height: 896px;

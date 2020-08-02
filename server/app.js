@@ -1,9 +1,14 @@
-const { Socket } = require("net");
+const Express = require("express");
+const Http = require("http");
+var app = Express();
+var server = Http.createServer(app);
+const SocketIo = require("socket.io").listen(server);
 
-const Express = require("express")();
-const Http = require("http").Server(Express);
-const SocketIo = require("socket.io")(Http);
-var port = process.env.PORT || 3000;
+app.set("port", 3000);
+server.listen(3000, () => {
+  var addr = server.address();
+  console.log("app listening on http://" + addr.address + ":" + addr.port);
+});
 
 const colors = {
   RED: 0,
@@ -14,10 +19,12 @@ const colors = {
 };
 
 // Create empty playing field
-var field;
+var coordField;
 // Player array, uses indices from the colors array to set player to certain color;
+// Is an array of objects containing name and score.
 var players;
 var currentTurn;
+
 initializeGame();
 
 SocketIo.on("connection", (socket) => {
@@ -28,7 +35,7 @@ SocketIo.on("connection", (socket) => {
     else if (players.some((x) => x === data.name))
       socket.emit("colorAlreadyChosen", players[data.color]);
     else {
-      players[data.color] = data.name;
+      players[data.color] = { name: data.name, score: 1 };
       socket.emit("yourColor", data.color);
       emitGameState();
     }
@@ -52,18 +59,13 @@ SocketIo.on("connection", (socket) => {
     }
     place(data.x, data.y, data.color);
     nextTurn();
+    calculateScores();
     emitGameState();
-
   });
   socket.on("reset", (data) => {
     if (data === "reset") initializeGame();
     emitGameState();
   });
-});
-
-Http.listen(process.env.port, () => {
-  var addr = Http.address();
-  console.log('app listening on http://' + addr.address + ':' + addr.port);
 });
 
 function checkIfPlayerIsAllowedToPlay(color) {
@@ -73,211 +75,178 @@ function checkIfPlayerIsAllowedToPlay(color) {
 }
 
 function checkIfValid(posX, posY) {
-  var valid = field.some((x) =>
-    x.some(
-      (y) =>
-        field.indexOf(x) >= posX - 1 &&
-        field.indexOf(x) <= posX + 1 &&
-        x.indexOf(y) >= posY - 1 &&
-        x.indexOf(y) <= posY + 1 &&
-        y != null &&
-        !filledIn(posX, posY)
-    )
+  var placedTile = coordField.find(
+    (tile) => tile.x === posX && tile.y === posY
   );
-  //return valid;
-  // UGLY AF needs to change to something with Some function as tried above
-  // but i'm to keep it as backup
-  x = posX;
-  y = posY;
-  lowX = x == 0 ? 0 : x - 1;
-  lowY = y == 0 ? 0 : y - 1;
-  highX = x == 7 ? 7 : x + 1;
-  highY = y == 7 ? 7 : y + 1;
-  if (filledIn(posX, posY)) return false;
-  if (filledIn(lowX, lowY)) return true;
-  if (filledIn(lowX, y)) return true;
-  if (filledIn(lowX, highY)) return true;
-  if (filledIn(highX, lowY)) return true;
-  if (filledIn(highX, y)) return true;
-  if (filledIn(highX, highY)) return true;
-  if (filledIn(x, highY)) return true;
-  if (filledIn(x, lowY)) return true;
-  return false;
+  var valid = coordField.some(
+    (tile) =>
+      posX - 1 <= tile.x &&
+      tile.x <= posX + 1 &&
+      posY - 1 <= tile.y &&
+      tile.y <= posY + 1 &&
+      tile.color != colors.WHITE
+  );
+  return placedTile.color === colors.WHITE && valid;
 }
 
 function place(x, y, color) {
-  checkHorizontalLines(x, y, color);
-  checkVerticalLines(x, y, color);
-  checkLeftUpRightDownDiagonal(x, y, color);
-  checkLeftDownRightUpDiagonal(x, y, color);
-  field[x][y] = color;
-}
-
-function filledIn(x, y) {
-  if (field[x][y] != colors.WHITE) return true;
+  var tilesToTakeOver = [
+    ...checkHorizontalLines(x, y, color),
+    ...checkVerticalLines(x, y, color),
+    ...checkLeftUpRightDownDiagonal(x, y, color),
+    ...checkLeftDownRightUpDiagonal(x, y, color),
+  ];
+  var distinctTilesToTakeOver = tilesToTakeOver.filter(
+    (thing, i, arr) =>
+      arr.findIndex((t) => t.x === thing.x && t.y === thing.y) === i
+  );
+  distinctTilesToTakeOver.forEach((tile) => setColor(tile.x, tile.y, color));
+  setColor(x, y, color)
 }
 
 function checkHorizontalLines(x, y, color) {
-  // Horizontal checks
-  field[x].forEach((tile, i) => {
-    if (tile == color) {
-      var lowerLimit = Math.min(i, y);
-      var higherLimit = Math.max(i, y);
+  var tilesToTakeOver = [];
+  var horizontalLine = coordField.filter((tile) => tile.y === y);
+  horizontalLine.forEach((tile) => {
+    if (tile.color == color) {
+      var lowerLimit = Math.min(x, tile.x);
+      var upperLimit = Math.max(x, tile.x);
+      var slicedHorizontalLine = horizontalLine.filter(
+        (tile) => lowerLimit < tile.x && tile.x < upperLimit
+      );
 
       if (
-        field[x]
-          .slice(lowerLimit + 1, higherLimit)
-          .some((pt) => pt === colors.WHITE)
+        slicedHorizontalLine.every(
+          (tile) => tile.color != colors.WHITE && tile.color != color
+        )
       ) {
-        field[x][y] = color;
-        return;
-      }
-
-      for (let index = lowerLimit; index < higherLimit; index++) {
-        field[x][index] = color;
+        tilesToTakeOver = [
+          ...tilesToTakeOver,
+          ...slicedHorizontalLine.map((tile) => {
+            return { x: tile.x, y: tile.y };
+          }),
+        ];
       }
     }
   });
+  return tilesToTakeOver;
 }
 
 function checkVerticalLines(x, y, color) {
-  // Vertical checks
-  var verticalLine = field.map((x) => x[y]);
-  verticalLine.forEach((tile, i) => {
-    if (tile == color) {
-      var lowerLimit = Math.min(i, x);
-      var higherLimit = Math.max(i, x);
+  var verticalLine = coordField.filter((tile) => tile.x === x);
+  var tilesToTakeOverVertically = [];
+  verticalLine.forEach((tile) => {
+    if (tile.color == color) {
+      var lowerLimit = Math.min(y, tile.y);
+      var upperLimit = Math.max(y, tile.y);
+      var slicedVerticalLine = verticalLine.filter(
+        (tile) => lowerLimit < tile.y && tile.y < upperLimit
+      );
 
-      if (
-        verticalLine
-          .slice(lowerLimit + 1, higherLimit)
-          .some((pt) => pt === colors.WHITE)
-      ) {
-        field[x][y] = color;
-        return;
-      }
-
-      for (let index = lowerLimit; index < higherLimit; index++) {
-        field[index][y] = color;
+      if (slicedVerticalLine.every((tile) => tile.color != colors.WHITE)) {
+        tilesToTakeOverVertically = [
+          ...tilesToTakeOverVertically,
+          ...slicedVerticalLine
+            .filter((x) => x.color != color)
+            .map((tile) => {
+              return { x: tile.x, y: tile.y };
+            }),
+        ];
       }
     }
   });
+  return tilesToTakeOverVertically;
 }
 
 function checkLeftUpRightDownDiagonal(x, y, color) {
-  var lowestValue = Math.min(x, y);
-  var lurdArray = [];
-  var startingPoint = { x: x - lowestValue, y: y - lowestValue };
-  lurdArray.push({
-    x: startingPoint.x,
-    y: startingPoint.y,
-    color: field[startingPoint.x][startingPoint.y],
-  });
-  while (true) {
-    startingPoint.x++;
-    startingPoint.y++;
-    if (startingPoint.x == 8 || startingPoint.y == 8) break;
-    lurdArray.push({
-      x: startingPoint.x,
-      y: startingPoint.y,
-      color: field[startingPoint.x][startingPoint.y],
-    });
-  }
-  lurdArray
-    .sort((a, b) => {
-      return a.x - b.x || a.y - b.y;
-    })
-    .forEach((tile, i) => {
-      if (tile.color == color) {
-        var lowerLimit = Math.min(
-          i,
-          lurdArray.indexOf(lurdArray.find((o) => o.x == x && o.y == y))
-        );
-        var higherLimit = Math.max(
-          i,
-          lurdArray.indexOf(lurdArray.find((o) => o.x == x && o.y == y))
-        );
-        if (
-          lurdArray
-            .slice(lowerLimit + 1, higherLimit)
-            .some((pt) => pt.color === colors.WHITE)
-        ) {
-          field[x][y] = color;
-          return;
-        }
-
-        for (let index = lowerLimit; index < higherLimit; index++) {
-          field[lurdArray[index].x][lurdArray[index].y] = color;
-        }
-      }
-    });
-}
-
-function checkLeftDownRightUpDiagonal(x, y, color) {
-  var ldruArray = [];
-  var theoreticalStartPoint = x + y;
-  var actualStartingPoint;
-  actualStartingPoint =
-    theoreticalStartPoint > 7
-      ? { x: 7, y: theoreticalStartPoint - 7 }
-      : { x: theoreticalStartPoint, y: 0 };
-  ldruArray.push({
-    x: actualStartingPoint.x,
-    y: actualStartingPoint.y,
-    color: field[actualStartingPoint.x][actualStartingPoint.y],
-  });
-  while (true) {
-    actualStartingPoint.x--;
-    actualStartingPoint.y++;
-    if (actualStartingPoint.x < 0 || actualStartingPoint.y > 7) break;
-    ldruArray.push({
-      x: actualStartingPoint.x,
-      y: actualStartingPoint.y,
-      color: field[actualStartingPoint.x][actualStartingPoint.y],
-    });
-  }
-  ldruArray.forEach((tile, i) => {
+  var tilesToTakeOver = [];
+  var diagonalLine = coordField.filter((tile) => tile.x - tile.y === x - y);
+  diagonalLine.forEach((tile) => {
     if (tile.color == color) {
-      var lowerLimit = Math.min(
-        i,
-        ldruArray.indexOf(ldruArray.find((o) => o.x == x && o.y == y))
-      );
-      var higherLimit = Math.max(
-        i,
-        ldruArray.indexOf(ldruArray.find((o) => o.x == x && o.y == y))
+      var lowerLimit = Math.min(x, tile.x);
+      var upperLimit = Math.max(x, tile.x);
+      var slicedDiagonalLine = diagonalLine.filter(
+        (tile) => lowerLimit < tile.x && tile.x < upperLimit
       );
 
       if (
-        ldruArray
-          .slice(lowerLimit + 1, higherLimit)
-          .some((pt) => pt.color === colors.WHITE)
+        slicedDiagonalLine.every(
+          (tile) => tile.color != colors.WHITE && tile.color != color
+        )
       ) {
-        field[x][y] = color;
-        return;
-      }
-
-      for (let index = lowerLimit; index < higherLimit; index++) {
-        field[ldruArray[index].x][ldruArray[index].y] = color;
+        tilesToTakeOver = [
+          ...tilesToTakeOver,
+          ...slicedDiagonalLine.map((tile) => {
+            return { x: tile.x, y: tile.y };
+          }),
+        ];
       }
     }
   });
+  return tilesToTakeOver;
+}
+
+function checkLeftDownRightUpDiagonal(x, y, color) {
+  var tilesToTakeOver = [];
+  var diagonalLine = coordField.filter((tile) => tile.x + tile.y === x + y);
+  diagonalLine.forEach((tile) => {
+    if (tile.color == color) {
+      var lowerLimit = Math.min(x, tile.x);
+      var upperLimit = Math.max(x, tile.x);
+      var slicedDiagonalLine = diagonalLine.filter(
+        (tile) => lowerLimit < tile.x && tile.x < upperLimit
+      );
+
+      if (
+        slicedDiagonalLine.every(
+          (tile) => tile.color != colors.WHITE && tile.color != color
+        )
+      ) {
+        tilesToTakeOver = [
+          ...tilesToTakeOver,
+          ...slicedDiagonalLine.map((tile) => {
+            return { x: tile.x, y: tile.y };
+          }),
+        ];
+      }
+    }
+  });
+  return tilesToTakeOver;
 }
 
 function initializeGame() {
-  field = Array.from(Array(8), () => Array.from(Array(8), () => colors.WHITE));
+  coordField = [...Array(64).keys()]
+    .map((x) => {
+      return { x: x % 8, y: Math.floor(x / 8), color: colors.WHITE };
+    })
+    .sort((a, b) => a.x - b.x);
   // Set starting field (1 ball of each color in middle of the field)
-  field[3][3] = colors.RED;
-  field[3][4] = colors.GREEN;
-  field[4][3] = colors.YELLOW;
-  field[4][4] = colors.BLUE;
+  setColor(3, 3, colors.RED);
+  setColor(3, 4, colors.YELLOW);
+  setColor(4, 3, colors.GREEN);
+  setColor(4, 4, colors.BLUE);
+  setColor(3, 0, colors.RED);
+  setColor(3, 1, colors.GREEN);
+  setColor(3, 2, colors.BLUE);
+
   players = [null, null, null, null];
-  currentTurn = Math.floor(Math.random() * 4);
+  currentTurn = 0;
 }
 
 function emitGameState() {
-  SocketIo.emit("field", field);
+  SocketIo.emit("coordField", coordField);
   SocketIo.emit("players", players);
   SocketIo.emit("currentPlayer", currentTurn);
+}
+
+function calculateScores() {
+  // for (let index = 0; index < players.length; index++) {
+  //   if (players[index])
+  //     players[index] = {...players[index], score: coordField.filter((x) => x.color === index).length};
+  // }
+  console.log(players);
+  players = players.map((player, index) => {return {...player, score: coordField.filter((x) => x.color === index).length}});
+  console.log(players);
 }
 
 function nextTurn() {
@@ -285,4 +254,8 @@ function nextTurn() {
   else currentTurn++;
 
   if (players[currentTurn] == null) nextTurn();
+}
+
+function setColor(x, y, color) {
+  coordField.find((tile) => tile.x == x && tile.y == y).color = color;
 }
