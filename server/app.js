@@ -101,117 +101,123 @@ function place(x, y, color) {
       arr.findIndex((t) => t.x === thing.x && t.y === thing.y) === i
   );
   distinctTilesToTakeOver.forEach((tile) => setColor(tile.x, tile.y, color));
-  setColor(x, y, color)
+  setColor(x, y, color);
 }
 
 function checkHorizontalLines(x, y, color) {
-  var tilesToTakeOver = [];
+  // First Filter for the horizontal line (y-values are the same)
+  // Then we go through the array and make conenctions between the chosen colors
+  // Add all the tiles that have to be colored (tiles which are between 2 borders of the same color)
+  // And filter this array for distinct values
   var horizontalLine = coordField.filter((tile) => tile.y === y);
-  horizontalLine.forEach((tile) => {
-    if (tile.color == color) {
-      var lowerLimit = Math.min(x, tile.x);
-      var upperLimit = Math.max(x, tile.x);
-      var slicedHorizontalLine = horizontalLine.filter(
-        (tile) => lowerLimit < tile.x && tile.x < upperLimit
-      );
-
-      if (
-        slicedHorizontalLine.every(
-          (tile) => tile.color != colors.WHITE && tile.color != color
-        )
-      ) {
-        tilesToTakeOver = [
-          ...tilesToTakeOver,
-          ...slicedHorizontalLine.map((tile) => {
-            return { x: tile.x, y: tile.y };
-          }),
-        ];
-      }
-    }
-  });
-  return tilesToTakeOver;
-}
-
-function checkVerticalLines(x, y, color) {
-  var verticalLine = coordField.filter((tile) => tile.x === x);
-  var tilesToTakeOverVertically = [];
-  verticalLine.forEach((tile) => {
-    if (tile.color == color) {
-      var lowerLimit = Math.min(y, tile.y);
-      var upperLimit = Math.max(y, tile.y);
-      var slicedVerticalLine = verticalLine.filter(
-        (tile) => lowerLimit < tile.y && tile.y < upperLimit
-      );
-
-      if (slicedVerticalLine.every((tile) => tile.color != colors.WHITE)) {
-        tilesToTakeOverVertically = [
-          ...tilesToTakeOverVertically,
-          ...slicedVerticalLine
+  return horizontalLine
+    .flatMap((tile) => {
+      if (tile.color == color) {
+        var lowerLimit = Math.min(x, tile.x);
+        var upperLimit = Math.max(x, tile.x);
+        var slicedHorizontalLine = horizontalLine.filter(
+          (tile) => lowerLimit < tile.x && tile.x < upperLimit
+        );
+        if (slicedHorizontalLine.every((tile) => tile.color != colors.WHITE)) {
+          return slicedHorizontalLine
             .filter((x) => x.color != color)
             .map((tile) => {
               return { x: tile.x, y: tile.y };
-            }),
-        ];
+            });
+        }
       }
-    }
-  });
-  return tilesToTakeOverVertically;
+    })
+    .filter(
+      (thing, i, arr) =>
+        arr.findIndex(
+          (t) => t && thing && t.x === thing.x && t.y === thing.y
+        ) === i
+    );
+}
+
+function checkVerticalLines(x, y, color) {
+  // First Filter for the vertical line (x-values are the same)
+  // Then we go through the array and make conenctions between the chosen colors
+  // Add all the tiles that have to be colored (tiles which are between 2 borders of the same color)
+  // And filter this array for distinct values
+  var verticalLine = coordField.filter((tile) => tile.x === x);
+  return verticalLine
+    .flatMap((tile) => {
+      if (tile.color == color) {
+        var lowerLimit = Math.min(y, tile.y);
+        var upperLimit = Math.max(y, tile.y);
+        var slicedVerticalLine = verticalLine.filter(
+          (tile) => lowerLimit < tile.y && tile.y < upperLimit
+        );
+        if (slicedVerticalLine.every((tile) => tile.color != colors.WHITE)) {
+          return slicedVerticalLine
+            .filter((x) => x.color != color)
+            .map((tile) => {
+              return { x: tile.x, y: tile.y };
+            });
+        }
+      }
+    })
+    .filter(
+      (thing, i, arr) =>
+        arr.findIndex(
+          (t) => t && thing && t.x === thing.x && t.y === thing.y
+        ) === i
+    );
 }
 
 function checkLeftUpRightDownDiagonal(x, y, color) {
-  var tilesToTakeOver = [];
   var diagonalLine = coordField.filter((tile) => tile.x - tile.y === x - y);
-  diagonalLine.forEach((tile) => {
-    if (tile.color == color) {
-      var lowerLimit = Math.min(x, tile.x);
-      var upperLimit = Math.max(x, tile.x);
-      var slicedDiagonalLine = diagonalLine.filter(
-        (tile) => lowerLimit < tile.x && tile.x < upperLimit
-      );
-
-      if (
-        slicedDiagonalLine.every(
-          (tile) => tile.color != colors.WHITE && tile.color != color
-        )
-      ) {
-        tilesToTakeOver = [
-          ...tilesToTakeOver,
-          ...slicedDiagonalLine.map((tile) => {
-            return { x: tile.x, y: tile.y };
-          }),
-        ];
+  return diagonalLine
+    .flatMap((tile) => {
+      if (tile.color == color) {
+        var lowerLimit = Math.min(x, tile.x);
+        var upperLimit = Math.max(x, tile.x);
+        var slicedDiagonalLine = diagonalLine.filter(
+          (tile) => lowerLimit < tile.x && tile.x < upperLimit
+        );
+        if (slicedDiagonalLine.every((tile) => tile.color != colors.WHITE)) {
+          return slicedDiagonalLine
+            .filter((x) => x.color != color)
+            .map((tile) => {
+              return { x: tile.x, y: tile.y };
+            });
+        }
       }
-    }
-  });
-  return tilesToTakeOver;
+    })
+    .filter(
+      (thing, i, arr) =>
+        arr.findIndex(
+          (t) => t && thing && t.x === thing.x && t.y === thing.y
+        ) === i
+    );
 }
 
 function checkLeftDownRightUpDiagonal(x, y, color) {
-  var tilesToTakeOver = [];
   var diagonalLine = coordField.filter((tile) => tile.x + tile.y === x + y);
-  diagonalLine.forEach((tile) => {
+  return diagonalLine
+  .flatMap((tile) => {
     if (tile.color == color) {
       var lowerLimit = Math.min(x, tile.x);
       var upperLimit = Math.max(x, tile.x);
       var slicedDiagonalLine = diagonalLine.filter(
         (tile) => lowerLimit < tile.x && tile.x < upperLimit
       );
-
-      if (
-        slicedDiagonalLine.every(
-          (tile) => tile.color != colors.WHITE && tile.color != color
-        )
-      ) {
-        tilesToTakeOver = [
-          ...tilesToTakeOver,
-          ...slicedDiagonalLine.map((tile) => {
+      if (slicedDiagonalLine.every((tile) => tile.color != colors.WHITE)) {
+        return slicedDiagonalLine
+          .filter((x) => x.color != color)
+          .map((tile) => {
             return { x: tile.x, y: tile.y };
-          }),
-        ];
+          });
       }
     }
-  });
-  return tilesToTakeOver;
+  })
+  .filter(
+    (thing, i, arr) =>
+      arr.findIndex(
+        (t) => t && thing && t.x === thing.x && t.y === thing.y
+      ) === i
+  );
 }
 
 function initializeGame() {
@@ -225,12 +231,9 @@ function initializeGame() {
   setColor(3, 4, colors.YELLOW);
   setColor(4, 3, colors.GREEN);
   setColor(4, 4, colors.BLUE);
-  setColor(3, 0, colors.RED);
-  setColor(3, 1, colors.GREEN);
-  setColor(3, 2, colors.BLUE);
 
   players = [null, null, null, null];
-  currentTurn = 0;
+  currentTurn = 0; //Math.floor(Math.random()*4);
 }
 
 function emitGameState() {
@@ -240,13 +243,12 @@ function emitGameState() {
 }
 
 function calculateScores() {
-  // for (let index = 0; index < players.length; index++) {
-  //   if (players[index])
-  //     players[index] = {...players[index], score: coordField.filter((x) => x.color === index).length};
-  // }
-  console.log(players);
-  players = players.map((player, index) => {return {...player, score: coordField.filter((x) => x.color === index).length}});
-  console.log(players);
+  players = players.map((player, index) => {
+    return {
+      ...player,
+      score: coordField.filter((x) => x.color === index).length,
+    };
+  });
 }
 
 function nextTurn() {
