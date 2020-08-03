@@ -34,8 +34,8 @@
               class="button playButton"
               v-bind:style="{ 'background-color': determineColor(tile.color) }"
               v-on:click="click(tile)"
-              style="color:black"
-            ><!--X:{{tile.x}} <br> Y:{{tile.y}}--></button>
+              style="color:pink"
+            >X:{{tile.x}} <br> Y:{{tile.y}}</button>
           </li>
       </ul>
     </div>
@@ -78,7 +78,7 @@ export default {
     };
   },
   created() {
-    this.socket = io("http://localhost:3000");
+    this.socket = io("localhost:3000");
   },
   mounted() {
     this.socket.on("field", (data) => {
@@ -112,6 +112,9 @@ export default {
           break;
         case 3:
           returnValue = "blue";
+          break;
+        case 5:
+          returnValue = "black";
           break;
         case null:
           returnValue = "white";

@@ -16,13 +16,14 @@ const COLORS = {
   YELLOW: 2,
   BLUE: 3,
   WHITE: 4,
+  BLACK: 5,
 };
 
 const GAMESTATES = {
   PRE_GAME: 0,
   IN_GAME: 1,
   POST_GAME: 2,
-}
+};
 
 // Create empty playing field
 var coordField;
@@ -58,7 +59,7 @@ SocketIo.on("connection", (socket) => {
     // If this is not the case return error to the player who tried to place that 'ball'
     // Next place the ball and calculate the fields which need to change color
     // Color those fields and return the new field to every player
-    if (gameState != GAMESTATES.IN_GAME){
+    if (gameState != GAMESTATES.IN_GAME) {
       socket.emit("test", "Can't place a tile when we're in pre or post game");
       return;
     }
@@ -66,11 +67,12 @@ SocketIo.on("connection", (socket) => {
       socket.emit("test", "Not your turn");
       return;
     }
-    var valid = checkIfValid(data.x, data.y);
-    if (!valid) {
+    var possibleMoves = getPossibleMoves(data.color);
+    if (!possibleMoves.some((x) => x.x === data.x && x.y === data.y)) {
       socket.emit("test", "Faulty placement");
       return;
     }
+
     place(data.x, data.y, data.color);
     nextTurn();
     calculateScores();
@@ -81,27 +83,20 @@ SocketIo.on("connection", (socket) => {
     emitGameState();
   });
   socket.on("start", () => {
+    currentTurn = Math.floor(Math.random()*4);
+    nextTurn();
     gameState = GAMESTATES.IN_GAME;
     emitGameState();
-  })
+  });
 });
 
-function checkIfValid(posX, posY) {
-  var placedTile = coordField.find(
-    (tile) => tile.x === posX && tile.y === posY
-  );
-  var valid = coordField.some(
-    (tile) =>
-      posX - 1 <= tile.x &&
-      tile.x <= posX + 1 &&
-      posY - 1 <= tile.y &&
-      tile.y <= posY + 1 &&
-      tile.color != COLORS.WHITE
-  );
-  return placedTile.color === COLORS.WHITE && valid;
+function place(x, y, color) {
+  var distinctTilesToTakeOver = getDistinctTilesToTakeOver(x, y, color);
+  distinctTilesToTakeOver.forEach((tile) => setColor(tile.x, tile.y, color));
+  setColor(x, y, color);
 }
 
-function place(x, y, color) {
+function getDistinctTilesToTakeOver(x, y, color) {
   var tilesToTakeOver = [
     ...checkHorizontalLines(x, y, color),
     ...checkVerticalLines(x, y, color),
@@ -112,8 +107,7 @@ function place(x, y, color) {
     (thing, i, arr) =>
       arr.findIndex((t) => t.x === thing.x && t.y === thing.y) === i
   );
-  distinctTilesToTakeOver.forEach((tile) => setColor(tile.x, tile.y, color));
-  setColor(x, y, color);
+  return distinctTilesToTakeOver;
 }
 
 function checkHorizontalLines(x, y, color) {
@@ -208,28 +202,28 @@ function checkLeftUpRightDownDiagonal(x, y, color) {
 function checkLeftDownRightUpDiagonal(x, y, color) {
   var diagonalLine = coordField.filter((tile) => tile.x + tile.y === x + y);
   return diagonalLine
-  .flatMap((tile) => {
-    if (tile.color == color) {
-      var lowerLimit = Math.min(x, tile.x);
-      var upperLimit = Math.max(x, tile.x);
-      var slicedDiagonalLine = diagonalLine.filter(
-        (tile) => lowerLimit < tile.x && tile.x < upperLimit
-      );
-      if (slicedDiagonalLine.every((tile) => tile.color != COLORS.WHITE)) {
-        return slicedDiagonalLine
-          .filter((x) => x.color != color)
-          .map((tile) => {
-            return { x: tile.x, y: tile.y };
-          });
+    .flatMap((tile) => {
+      if (tile.color == color) {
+        var lowerLimit = Math.min(x, tile.x);
+        var upperLimit = Math.max(x, tile.x);
+        var slicedDiagonalLine = diagonalLine.filter(
+          (tile) => lowerLimit < tile.x && tile.x < upperLimit
+        );
+        if (slicedDiagonalLine.every((tile) => tile.color != COLORS.WHITE)) {
+          return slicedDiagonalLine
+            .filter((x) => x.color != color)
+            .map((tile) => {
+              return { x: tile.x, y: tile.y };
+            });
+        }
       }
-    }
-  })
-  .filter(
-    (thing, i, arr) =>
-      arr.findIndex(
-        (t) => t && thing && t.x === thing.x && t.y === thing.y
-      ) === i
-  );
+    })
+    .filter(
+      (thing, i, arr) =>
+        arr.findIndex(
+          (t) => t && thing && t.x === thing.x && t.y === thing.y
+        ) === i
+    );
 }
 
 function initializeGame() {
@@ -243,9 +237,11 @@ function initializeGame() {
   setColor(3, 4, COLORS.YELLOW);
   setColor(4, 3, COLORS.GREEN);
   setColor(4, 4, COLORS.BLUE);
+  currentTurn = null;
 
-  players = Array.from(new Array(4), () => {return {name: null, score: 1}});
-  currentTurn = 0; //Math.floor(Math.random()*4);
+  players = Array.from(new Array(4), () => {
+    return { name: null, score: 1 };
+  });
   gameState = GAMESTATES.PRE_GAME;
 }
 
@@ -262,7 +258,7 @@ function calculateScores() {
       score: coordField.filter((x) => x.color === index).length,
     };
   });
-  if(coordField.filter(x => x.color == COLORS.WHITE).length ===0)
+  if (coordField.filter((x) => x.color == COLORS.WHITE).length === 0)
     gameState = GAMESTATES.POST_GAME;
 }
 
@@ -275,4 +271,42 @@ function nextTurn() {
 
 function setColor(x, y, color) {
   coordField.find((tile) => tile.x == x && tile.y == y).color = color;
+}
+
+function getPossibleMoves(color) {
+  // Get a distinct list of all adjacent tiles
+  // Only get those which are non-colored (===COLORS.WHITE)
+  // Count how many tiles you take over if placing in one of the adjacent tiles
+  // if there is a move with atleast 1 taken over tile
+  // return only moves which take over tiles\
+  // else return all adjacent tiles
+  var possibleMoves = coordField
+    .filter((x) => x.color != COLORS.WHITE)
+    .flatMap((x) =>
+      coordField.filter(
+        (tile) =>
+          x.x - 1 <= tile.x &&
+          tile.x <= x.x + 1 &&
+          x.y - 1 <= tile.y &&
+          tile.y <= x.y + 1
+      )
+    )
+    .filter((x) => x.color == COLORS.WHITE)
+    .filter(
+      (thing, i, arr) =>
+        arr.findIndex(
+          (t) => t && thing && t.x === thing.x && t.y === thing.y
+        ) === i
+    )
+    .map((x) => {
+      return {
+        x: x.x,
+        y: x.y,
+        color: x.color,
+        tilesToTakeOver: getDistinctTilesToTakeOver(x.x, x.y, color).length,
+      };
+    });
+  return possibleMoves.some((x) => x.tilesToTakeOver > 0)
+    ? possibleMoves.filter((x) => x.tilesToTakeOver > 0)
+    : possibleMoves;
 }
