@@ -10,40 +10,38 @@
         <button
           class="button players"
           v-bind:style="{ 'background-color': determineColor(index) }"
-          v-bind:class="[{ currentPlayer: index == currentTurn }]"
-          disabled
+          v-bind:class="[
+            { currentPlayer: index == currentTurn },
+            { chosenPlayer: player.name || color },
+            { unchosen: !color && !player.name },
+          ]"
+          :disabled="player.name || color"
+          v-on:click="chooseColor(index)"
         >
           <p v-if="player">{{ player.name }}</p>
         </button>
       </li>
     </ul>
-    <input v-model="playerName" placeholder="Player name" />
-    <p>
-      <button v-on:click="changeColor(colors.RED)">Red</button>
-      <button v-on:click="changeColor(colors.GREEN)">Green</button>
-      <button v-on:click="changeColor(colors.YELLOW)">Yellow</button>
-      <button v-on:click="changeColor(colors.BLUE)">Blue</button>
-    </p>
     <div class="spelBord">
       <ul>
-          <li
-            v-for="(tile, index) in coordField"
-            v-bind:key="index"
+        <li v-for="(tile, index) in coordField" v-bind:key="index">
+          <button
+            class="button playButton"
+            v-bind:style="{ 'background-color': determineColor(tile.color) }"
+            v-on:click="click(tile)"
+            style="color:pink"
           >
-            <button
-              class="button playButton"
-              v-bind:style="{ 'background-color': determineColor(tile.color) }"
-              v-on:click="click(tile)"
-              style="color:pink"
-            >X:{{tile.x}} <br> Y:{{tile.y}}</button>
-          </li>
+            <!--X:{{tile.x}} <br> Y:{{tile.y}}-->
+          </button>
+        </li>
       </ul>
     </div>
     <div>
       <h2>Scoreboard:</h2>
       <ol>
         <li
-          v-for="(player, index) in players.filter(x => x.name != null)
+          v-for="(player, index) in players
+            .filter((x) => x.name != null)
             .filter((x) => x)
             .sort((a, b) => b.score - a.score)"
           v-bind:key="`scoreBoardPlayer-${index}`"
@@ -74,7 +72,7 @@ export default {
       playerName: "",
       currentTurn: 0,
       colors,
-      color: colors.RED,
+      color: null,
     };
   },
   created() {
@@ -123,7 +121,18 @@ export default {
       return returnValue;
     },
     click(tile) {
-      this.socket.emit("place", {x: tile.x, y: tile.y, color: this.color});
+      this.socket.emit("place", { x: tile.x, y: tile.y });
+    },
+    chooseColor(color) {
+      let playerName = prompt("What is your username?");
+      if (playerName) {
+        this.playerName = playerName;
+        this.color = color;
+        this.socket.emit("chooseColor", {
+          color: color,
+          name: this.playerName,
+        });
+      }
     },
   },
 };
@@ -165,7 +174,6 @@ ul {
   margin: 20px;
   color: black;
   font-weight: bold;
-  cursor: auto;
 }
 .currentPlayer {
   -webkit-box-shadow: 0px 0px 56px 19px rgba(17, 255, 0, 1);
@@ -174,5 +182,14 @@ ul {
 }
 .normal {
   border: 1px solid black;
+}
+.unchosen {
+  cursor: pointer;
+}
+.unchosen:hover {
+  border: 3px solid orangered;
+}
+.chosenPlayer {
+  cursor: auto;
 }
 </style>

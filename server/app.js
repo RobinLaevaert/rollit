@@ -33,6 +33,8 @@ var players;
 var currentTurn;
 var gameState;
 
+var messages = [];
+
 initializeGame();
 
 SocketIo.on("connection", (socket) => {
@@ -47,6 +49,7 @@ SocketIo.on("connection", (socket) => {
       socket.emit("colorAlreadyChosen", players[data.color]);
     else {
       players[data.color] = { name: data.name, score: 1 };
+      socket.color = data.color;
       socket.emit("yourColor", data.color);
       emitGameState();
     }
@@ -63,17 +66,17 @@ SocketIo.on("connection", (socket) => {
       socket.emit("test", "Can't place a tile when we're in pre or post game");
       return;
     }
-    if (data.color != currentTurn) {
+    if (socket.color != currentTurn) {
       socket.emit("test", "Not your turn");
       return;
     }
-    var possibleMoves = getPossibleMoves(data.color);
+    var possibleMoves = getPossibleMoves(socket.color);
     if (!possibleMoves.some((x) => x.x === data.x && x.y === data.y)) {
       socket.emit("test", "Faulty placement");
       return;
     }
 
-    place(data.x, data.y, data.color);
+    place(data.x, data.y, socket.color);
     nextTurn();
     calculateScores();
     emitGameState();
