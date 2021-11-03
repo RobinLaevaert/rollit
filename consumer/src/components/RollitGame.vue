@@ -2,11 +2,7 @@
   <div>
     <p>Players:</p>
     <ul>
-      <li
-        v-for="(player, index) in players"
-        v-bind:key="`player-${index}`"
-        class="players"
-      >
+      <li v-for="(player, index) in players" v-bind:key="`player-${index}`" class="players">
         <button
           class="button players"
           v-bind:style="{ 'background-color': determineColor(index) }"
@@ -41,9 +37,9 @@
       <ol>
         <li
           v-for="(player, index) in players
-            .filter((x) => x.name != null)
-            .filter((x) => x)
-            .sort((a, b) => b.score - a.score)"
+          .filter((x) => x.name != null)
+          .filter((x) => x)
+          .sort((a, b) => b.score - a.score)"
           v-bind:key="`scoreBoardPlayer-${index}`"
         >
           <h3>{{ player.name }} - {{ player.score }}</h3>
@@ -76,13 +72,15 @@ export default {
     };
   },
   created() {
-    this.socket = io("localhost:3000");
+    this.socket = io("https://rolit.herokuapp.com");
   },
   mounted() {
     this.socket.on("field", (data) => {
+      console.log("test");
       this.field = data;
     });
     this.socket.on("coordField", (data) => {
+      console.log("test");
       this.coordField = data;
     });
     this.socket.on("players", (data) => {

@@ -10,6 +10,46 @@ server.listen(3000, () => {
   console.log("app listening on http://" + addr.address + ":" + addr.port);
 });
 
+app.get('/possiblemoves/:color', (req, res) => {
+  res.status(200);
+  var response = getPossibleMoves(req.params.color);
+  res.json(response);
+  res.end();
+});
+
+app.post('/move/:x/:y/:color', (req,res) => {
+  let xcoord = parseInt(req.params.x);
+  let ycoord = parseInt(req.params.y);
+  let color = parseInt(req.params.color);
+  if(isNaN(color) || isNaN(xcoord) || isNaN(ycoord)){
+    res.status(500);
+    res.end();
+  }
+  if (gameState != GAMESTATES.IN_GAME) {
+    res.status(500);
+    res.end();
+    return;
+  }
+  if (req.params.color != currentTurn) {
+    res.status(500);
+    res.end();
+    return;
+  }
+  var possibleMoves = getPossibleMoves(color);
+  console.log(possibleMoves);
+  if (!possibleMoves.some((x) => x.x === xcoord && x.y === ycoord)) {
+    res.status(500);
+    res.end();
+    return;
+  }
+  place(xcoord, ycoord, color);
+  nextTurn();
+  calculateScores();
+  emitGameState();
+  res.status(200);
+  res.end();
+});
+
 const COLORS = {
   RED: 0,
   GREEN: 1,
